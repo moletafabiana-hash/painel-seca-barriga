@@ -218,7 +218,7 @@
   .day-card-header .day-label{flex:1;}
   .day-arrow{border:none;background:transparent;color:var(--orange-dark);cursor:pointer;font-size:12px;padding:4px;transition:transform 0.15s;flex-shrink:0;}
   .day-arrow.open{transform:rotate(90deg);}
-  .day-card .day-items{padding:0 16px 14px;}
+  .day-card .day-items{padding:0 16px 14px;display:flex;flex-direction:column;gap:10px;}
   .rank-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--border);}
   .rank-row:first-child{border-top:none;}
   .rank-num{
@@ -234,11 +234,11 @@
   h2.section-title{font-size:18px;margin:0 0 12px;color:var(--black);}
   .shaped-col{display:flex;flex-direction:column;gap:4px;min-width:140px;}
   .shaped-col .shaped-btn{width:100%;text-align:left;}
-  .msg-item{padding:8px 0;border-top:1px solid var(--border);}
-  .msg-item:first-child{border-top:none;}
-  .msg-tag{font-family:'Bebas Neue',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--orange-dark);font-weight:700;margin-bottom:3px;}
+  .msg-item{padding:12px 14px;background:var(--cream);border:1px solid var(--border);border-radius:var(--radius);}.msg-item.sent{background:var(--green-bg);border-color:var(--green);}.msg-tag-row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px;}
+  
+  .msg-tag{font-family:'Bebas Neue',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;color:var(--orange-dark);font-weight:700;}.msg-item.sent .msg-tag{color:var(--green);}
   .msg-text{font-size:13px;color:var(--black);line-height:1.5;white-space:pre-wrap;}
-  .msg-actions{display:flex;gap:6px;margin-top:6px;}
+  .msg-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
   .msg-item textarea{width:100%;font-family:'Inter',sans-serif;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;line-height:1.5;}
   .msg-item input[type="text"]{width:100%;font-family:'Inter',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;}
   .msg-anexos{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px;}
@@ -640,7 +640,7 @@ function renderAvalMsgList(p){
   listDiv.innerHTML = linkItems.map(item=>{
     const texto = textoAtual(item).replace('{LINK}', link);
     const btnId = 'copyaval_'+item.id;
-    return `<div class="msg-item">
+    return `<div class="msg-item ${isMsgSent(item.id)?'sent':''}">
       <div class="msg-tag">${item.icon} ${item.tag}</div>
       <div class="msg-text">${texto}</div>
       <div class="msg-actions">
@@ -1194,7 +1194,7 @@ function renderAnexoAddRow(item){
   </div>`;
 }
 
-function renderMsgItem(item){
+function getMsgStatus(){ return loadJSON('sb_msg_status', {}); } function isMsgSent(id){ return !!getMsgStatus()[id]; } function toggleMsgStatus(id, ev){ if(ev) ev.stopPropagation(); const status = getMsgStatus(); status[id] = !status[id]; saveJSON('sb_msg_status', status); render(); } function renderMsgItem(item){
   if(editingMsgId === item.id){
     const texto = textoAtual(item);
     return `<div class="msg-item editing">
@@ -1211,8 +1211,8 @@ function renderMsgItem(item){
   const texto = textoAtual(item);
   const flag = item.needsLink ? ' <span class="muted">· mensagem individual, gere pela aba Participantes</span>' : (item.audioOnly ? ' <span class="muted">· sem texto no Trello</span>' : '');
   const waHref = 'https://wa.me/?text=' + encodeURIComponent(texto);
-  return `<div class="msg-item">
-    <div class="msg-tag">${item.icon} ${item.tag}${isEdited?' <span class="muted">· editado</span>':''}${flag}</div>
+  return `<div class="msg-item ${isMsgSent(item.id)?'sent':''}">
+    <div class="msg-tag-row"><div class="msg-tag">${item.icon} ${item.tag}${isEdited?' <span class="muted">· editado</span>':''}${flag}</div><button class="btn ${isMsgSent(item.id)?'secondary':'ghost'} small" onclick="toggleMsgStatus('${item.id}', event)" style="flex-shrink:0;">${isMsgSent(item.id)?'✓ Enviada':'Marcar enviada'}</button></div>
     <div class="msg-text">${texto}</div>
     ${renderAnexos(item)}
     ${renderAnexoAddRow(item)}
@@ -1231,7 +1231,7 @@ function getConfig(){
   return loadJSON('sb_config', {edicao: 9, dataInicio: '2026-08-10'});
 }
 function getParticipantes(){ return loadJSON('sb_participantes', []); }
-function getCalStatus(){ return loadJSON('sb_calendario_status', {}); }
+function getCalStatus(){ return loadJSON('sb_calendario_status', {}); } function dayProgress(items){ const msgStatus = getMsgStatus(); const total = items.length; const sent = items.filter(i=>!!msgStatus[i.id]).length; return {total, sent, allSent: total>0 && sent===total}; } function toggleAllMsgStatus(key, ev){ if(ev) ev.stopPropagation(); const entry = CALENDARIO.find(c=>'o'+c.offset===key); if(!entry) return; const prog = dayProgress(entry.items); const novoStatus = !prog.allSent; const msgStatus = getMsgStatus(); entry.items.forEach(i=>{ msgStatus[i.id] = novoStatus; }); saveJSON('sb_msg_status', msgStatus); setDayCollapsed(key, novoStatus); render(); }
 function getCollapsedDays(){ return loadJSON('sb_calendario_colapsado', {}); }
 function setDayCollapsed(key, val){
   const c = getCollapsedDays();
@@ -1507,13 +1507,13 @@ function render(){
   const todayDiv = document.getElementById('todayContent');
   const status = getCalStatus();
   if(todayEntry){
-    const key = 'o'+todayEntry.offset;
+    const key = 'o'+todayEntry.offset; const prog = dayProgress(todayEntry.items);
     const isSent = !!status[key];
     todayDiv.innerHTML = `
       <div class="day-row today" style="flex-direction:column;align-items:stretch;">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div class="day-label">${todayEntry.label}</div>
-          <button class="btn ${isSent?'secondary':''} small" onclick="toggleCalStatus('${key}')">${isSent?'✓ Enviado':'Marcar enviado'}</button>
+          <button class="btn ${prog.allSent?'secondary':'ghost'} small" onclick="toggleAllMsgStatus('${key}', event)">${prog.allSent?'✓ Todas enviadas':prog.sent+'/'+prog.total+' enviadas'}</button>
         </div>
         <div class="day-items">${todayEntry.items.map(renderMsgItem).join('')}</div>
       </div>`;
@@ -1556,14 +1556,14 @@ function render(){
   calDiv.innerHTML = CALENDARIO.map(c=>{
     const key = 'o'+c.offset;
     const isSent = !!status[key];
-    const isToday = c.offset === off;
+    const isToday = c.offset === off; const prog = dayProgress(c.items);
     const isCollapsed = !!collapsedMap[key];
     return `
       <div class="day-card ${isToday?'today':''}">
         <div class="day-card-header" onclick="toggleDayCollapsed('${key}')">
           <button class="day-arrow ${isCollapsed?'':'open'}" onclick="toggleDayCollapsed('${key}', event)" title="${isCollapsed?'Abrir':'Fechar'}">▶</button>
           <div class="day-label">${c.label} <span class="muted">${fmtDate(dateForOffset(c.offset))}</span></div>
-          <button class="btn ${isSent?'secondary':'ghost'} small" onclick="toggleCalStatus('${key}', event)">${isSent?'✓ Enviado':'Marcar enviado'}</button>
+          <button class="btn ${prog.allSent?'secondary':'ghost'} small" onclick="toggleAllMsgStatus('${key}', event)">${prog.allSent?'✓ Todas enviadas':prog.sent+'/'+prog.total+' enviadas'}</button>
         </div>
         ${isCollapsed ? '' : `<div class="day-items">${c.items.map(renderMsgItem).join('')}</div>`}
       </div>`;
