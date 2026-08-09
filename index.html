@@ -370,7 +370,7 @@
       <div style="overflow-x:auto;">
       <table>
         <thead><tr>
-          <th>Nome</th><th>Sexo</th><th>Peso inicial</th><th>Peso final</th><th>Cintura inicial</th><th>Cintura final</th>
+          <th>Nome</th><th>Sexo</th><th>Peso inicial<br><span class="muted" style="font-style:italic;text-transform:none;">kg</span></th><th>Peso final<br><span class="muted" style="font-style:italic;text-transform:none;">kg</span></th><th>Cintura inicial<br><span class="muted" style="font-style:italic;text-transform:none;">cm</span></th><th>Cintura final<br><span class="muted" style="font-style:italic;text-transform:none;">cm</span></th>
           <th>Desafios validados</th><th></th>
         </tr></thead>
         <tbody id="participantesBody"></tbody>
@@ -610,20 +610,20 @@ function confirmShapedReview(){
 }
 
 // ---------- Mensagens de avaliação Shaped (link individual + tutorial fixo) ----------
-let avalMsgPendingId = null;
-function openAvalMsgModal(participantId){
+let avalMsgPendingId = null; let avalMsgPendingFase = null;
+function openAvalMsgModal(participantId, fase){ avalMsgPendingFase = fase || null; const faseLabel = fase==='inicial' ? 'inicial' : (fase==='final' ? 'final' : '');
   avalMsgPendingId = participantId;
   const list = getParticipantes();
   const p = list.find(x=>x.id===participantId);
   if(!p) return;
-  document.getElementById('avalMsgTitle').textContent = `Mensagens de avaliação — ${p.nome}`;
+  document.getElementById('avalMsgTitle').textContent = `Mensagem de avaliação ${faseLabel} — ${p.nome}`;
   document.getElementById('avalMsgLink').value = p.linkShaped || '';
   renderAvalMsgList(p);
   document.getElementById('avalMsgModal').classList.remove('hidden');
 }
 function closeAvalMsgModal(){
   document.getElementById('avalMsgModal').classList.add('hidden');
-  avalMsgPendingId = null;
+  avalMsgPendingId = null; avalMsgPendingFase = null;
 }
 function saveAvalLink(){
   const list = getParticipantes();
@@ -634,7 +634,7 @@ function saveAvalLink(){
   renderAvalMsgList(p);
 }
 function renderAvalMsgList(p){
-  const linkItems = Object.values(ALL_MSG_ITEMS).filter(it=>it.needsLink);
+  const linkItems = Object.values(ALL_MSG_ITEMS).filter(it=>it.needsLink && (!avalMsgPendingFase || it.fase===avalMsgPendingFase));
   const listDiv = document.getElementById('avalMsgList');
   const link = p.linkShaped || '[cole o link acima e clique em Salvar]';
   listDiv.innerHTML = linkItems.map(item=>{
@@ -673,11 +673,11 @@ function openParticipanteDetalhe(participantId){
   if(!p) return;
   document.getElementById('detalheTitle').textContent = `Detalhes — ${p.nome}`;
   document.getElementById('detalheBody').innerHTML = `
-    <div style="margin-bottom:12px;"><label class="muted" style="display:block;margin-bottom:4px;">E-mail</label><input type="text" value="${p.email||''}" placeholder="nome@email.com" onchange="updateParticipante('${p.id}','email',this.value.trim())"></div><div class="shaped-col">
+    <div class="shaped-col">
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','inicial')">${p.avalIni ? '✓ Inicial ('+p.avalIni.data+')' : '📄 Enviar avaliação inicial'}</button>
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','final')">${p.avalFinal ? '✓ Final ('+p.avalFinal.data+')' : '📄 Enviar avaliação final'}</button>
       ${(p.avalIni && p.avalFinal) ? `<div class="muted">Peso: ${p.avalIni.peso}kg → ${p.avalFinal.peso}kg (Δ ${(p.avalFinal.peso-p.avalIni.peso).toFixed(1)}kg)</div><div class="muted">Cintura: ${p.avalIni.cintura}cm → ${p.avalFinal.cintura}cm (Δ ${(p.avalFinal.cintura-p.avalIni.cintura).toFixed(1)}cm)</div><div class="muted">Gordura: ${p.avalIni.percGordura??'–'}% → ${p.avalFinal.percGordura??'–'}%</div>` : ''}
-      <button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}')">✉️ Mensagens de avaliação</button>
+      <button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}','inicial')">✉️ Mensagem de avaliação inicial</button><button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}','final')">✉️ Mensagem de avaliação final</button>
     </div>
   `;
   document.getElementById('detalheModal').classList.remove('hidden');
@@ -811,7 +811,7 @@ function renderDesafiosTab(list){
 const CALENDARIO = [
   {offset:-3, label:"D-3", items:[
     {id:'o-3_i0', icon:'🎉', tag:'Abertura oficial do grupo', texto:"Oii, pessoal! Grupo oficial criado 🎉\nSejam todos muito bem-vindos!\n\nAgora é foco, constância e zero desculpas 😎\nVamos arrasar nesse desafio!\n\nBora juntos! 💪✨"},
-    {id:'o-3_i1', icon:'📸', tag:'Avaliação corporal (individual)', needsLink:true, texto:"Oii!\n📸 Avaliação corporal – atenção\n\nA avaliação corporal é uma excelente ferramenta do desafio para acompanharmos sua evolução.\nSegue seu link:\n{LINK}\nTutorial para realização das fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nÉ essencial seguir os protocolos para termos a avaliação mais fidedigna:\n\n✔️ 4 horas em jejum\n✔️ Não ter feito exercício físico vigoroso nas últimas 24h\n✔️ Ter urinado nas últimas 2 horas\n✔️ Não estar no período menstrual\n✔️ Não estar gestante\n✔️ Vestimenta adequada (biquíni ou top + short justo)\n✔️ Poses corretas\n✔️ Cabelo preso\n\nQualquer dúvida, me chama"},
+    {id:'o-3_i1', icon:'📸', tag:'Avaliação corporal (individual)', needsLink:true, fase:'inicial', texto:"Oii!\n📸 Avaliação corporal – atenção\n\nA avaliação corporal é uma excelente ferramenta do desafio para acompanharmos sua evolução.\nSegue seu link:\n{LINK}\nTutorial para realização das fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nÉ essencial seguir os protocolos para termos a avaliação mais fidedigna:\n\n✔️ 4 horas em jejum\n✔️ Não ter feito exercício físico vigoroso nas últimas 24h\n✔️ Ter urinado nas últimas 2 horas\n✔️ Não estar no período menstrual\n✔️ Não estar gestante\n✔️ Vestimenta adequada (biquíni ou top + short justo)\n✔️ Poses corretas\n✔️ Cabelo preso\n\nQualquer dúvida, me chama"},
     {id:'o-3_i2', icon:'📱', tag:'App Levíssima', audioOnly:true, texto:"(Sem texto no Trello — este card só tem anexos: um vídeo explicativo e o \"Guia Rápido App.pdf\". Envie os arquivos direto no grupo.)", anexosPadrao:["Guia Rápido App.pdf"]},
   ]},
   {offset:-2, label:"D-2", items:[
@@ -908,7 +908,7 @@ const CALENDARIO = [
   {offset:21, label:"D21", items:[
     {id:'o21_i0', icon:'🧮', tag:'Apuração Desafio 4', texto:"Pessoal, apuração final do Desafio 4 🔥\nCaso alguém precise ajustar algo, é só enviar a comprovação até 18h30.\n\n⏰ Após esse horário, seguimos com o sorteio 🎁✨"},
     {id:'o21_i1', icon:'🎲', tag:'Sorteio desafio 4', audioOnly:true, texto:"(Sem texto salvo no Trello — mensagem de sorteio enviada ao vivo/na hora, com o nome da sorteada. Escreva aqui o texto que quiser usar.)"},
-    {id:'o21_i2', icon:'📍', tag:'Avaliação Shapped (fechamento)', needsLink:true, texto:"Olá.\nÉ hora de medir os resultados! 💪🏻\nEsse é o link para fazer sua última avaliação:\n{LINK}\n\nTutorial para realizar as fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nOrientações:\n4 horas em jejum\nNão ter feito exercício físico vigoroso nas últimas 24h\nTer urinado nas últimas 2 horas\nVestimenta adequada (biquíni ou top + short justo)\nPoses corretas\nCabelo preso\nNão estar no período menstrual\nNão estar gestante\n\nSe não conseguir subir as fotos direto na plataforma, me envia por aqui junto com seu peso atual."},
+    {id:'o21_i2', icon:'📍', tag:'Avaliação Shapped (fechamento)', needsLink:true, fase:'final', texto:"Olá.\nÉ hora de medir os resultados! 💪🏻\nEsse é o link para fazer sua última avaliação:\n{LINK}\n\nTutorial para realizar as fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nOrientações:\n4 horas em jejum\nNão ter feito exercício físico vigoroso nas últimas 24h\nTer urinado nas últimas 2 horas\nVestimenta adequada (biquíni ou top + short justo)\nPoses corretas\nCabelo preso\nNão estar no período menstrual\nNão estar gestante\n\nSe não conseguir subir as fotos direto na plataforma, me envia por aqui junto com seu peso atual."},
   ]},
 ];
 const ALL_MSG_ITEMS = {};
@@ -1524,16 +1524,16 @@ function render(){
   // participantes table
   const tbody = document.getElementById('participantesBody');
   tbody.innerHTML = '';
-  const searchNorm = normalizeStr(participantesSearch); let listFiltrada = searchNorm ? list.filter(p=>normalizeStr(p.nome).includes(searchNorm) || normalizePhone(p.telefone).includes(normalizePhone(participantesSearch)) || normalizeStr(p.email||'').includes(searchNorm)) : list.slice(); listFiltrada = listFiltrada.sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome))); document.getElementById('participantesEmpty').style.display = listFiltrada.length? 'none':'block'; if(!listFiltrada.length && list.length){ document.getElementById('participantesEmpty').textContent = 'Nenhuma participante encontrada para essa busca.'; } else { document.getElementById('participantesEmpty').textContent = 'Nenhuma participante cadastrada ainda.'; }
+  const searchNorm = normalizeStr(participantesSearch); let listFiltrada = searchNorm ? list.filter(p=>{const pn=normalizePhone(participantesSearch);return normalizeStr(p.nome).includes(searchNorm) || (pn && normalizePhone(p.telefone).includes(pn)) || normalizeStr(p.email||'').includes(searchNorm);}) : list.slice(); listFiltrada = listFiltrada.sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome))); document.getElementById('participantesEmpty').style.display = listFiltrada.length? 'none':'block'; if(!listFiltrada.length && list.length){ document.getElementById('participantesEmpty').textContent = 'Nenhuma participante encontrada para essa busca.'; } else { document.getElementById('participantesEmpty').textContent = 'Nenhuma participante cadastrada ainda.'; }
   listFiltrada.forEach(p=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${p.nome}<br><span class="muted">${p.telefone||''}${p.email?' · '+p.email:''}</span></td>
       <td>${p.sexo}</td>
-      <td>${p.pesoIni ? p.pesoIni+' kg' : '<span class="muted">—</span>'}</td>
-      <td>${p.avalFinal ? p.pesoAtual+' kg <span class="muted">('+(p.pesoAtual-p.pesoIni<=0?'':'+')+(p.pesoAtual-p.pesoIni).toFixed(1)+' kg)</span>' : '<span class="muted">—</span>'}</td>
-      <td>${p.cinturaIni ? p.cinturaIni+' cm' : '<span class="muted">—</span>'}</td>
-      <td>${p.avalFinal ? p.cinturaAtual+' cm <span class="muted">('+(p.cinturaAtual-p.cinturaIni<=0?'':'+')+(p.cinturaAtual-p.cinturaIni).toFixed(1)+' cm)</span>' : '<span class="muted">—</span>'}</td>
+      <td>${p.pesoIni ? p.pesoIni : '<span class="muted">—</span>'}</td>
+      <td>${p.avalFinal ? p.pesoAtual+' <span class="muted">('+(p.pesoAtual-p.pesoIni<=0?'':'+')+(p.pesoAtual-p.pesoIni).toFixed(1)+')</span>' : '<span class="muted">—</span>'}</td>
+      <td>${p.cinturaIni ? p.cinturaIni : '<span class="muted">—</span>'}</td>
+      <td>${p.avalFinal ? p.cinturaAtual+' <span class="muted">('+(p.cinturaAtual-p.cinturaIni<=0?'':'+')+(p.cinturaAtual-p.cinturaIni).toFixed(1)+')</span>' : '<span class="muted">—</span>'}</td>
       <td>${validadosCount(p)}/4</td>
       <td class="row-actions">
         <button class="btn ghost small" onclick="openParticipanteDetalhe('${p.id}')">Ver detalhes</button>
