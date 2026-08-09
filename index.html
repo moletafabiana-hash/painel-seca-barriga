@@ -359,7 +359,7 @@
       <div class="form-grid">
         <div><label>Nome</label><input type="text" id="pNome" placeholder="Nome completo"></div>
         <div><label>Sexo</label><select id="pSexo"><option value="F">Feminino</option><option value="M">Masculino</option></select></div>
-        <div><label>Telefone</label><input type="tel" id="pTelefone" placeholder="(21) 90000-0000"></div>
+        <div><label>Telefone</label><input type="tel" id="pTelefone" placeholder="(21) 90000-0000"></div><div><label>E-mail</label><input type="text" id="pEmail" placeholder="nome@email.com"></div>
       </div>
       <p class="muted" style="margin-top:-6px;">Peso e cintura iniciais não se cadastram aqui — envie o PDF da avaliação Shaped inicial pela coluna "Avaliação Shaped" depois de criar a participante.</p>
       <button class="btn" onclick="addParticipante()">Adicionar participante</button>
@@ -673,7 +673,7 @@ function openParticipanteDetalhe(participantId){
   if(!p) return;
   document.getElementById('detalheTitle').textContent = `Detalhes — ${p.nome}`;
   document.getElementById('detalheBody').innerHTML = `
-    <div class="shaped-col">
+    <div style="margin-bottom:12px;"><label class="muted" style="display:block;margin-bottom:4px;">E-mail</label><input type="text" value="${p.email||''}" placeholder="nome@email.com" onchange="updateParticipante('${p.id}','email',this.value.trim())"></div><div class="shaped-col">
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','inicial')">${p.avalIni ? '✓ Inicial ('+p.avalIni.data+')' : '📄 Enviar avaliação inicial'}</button>
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','final')">${p.avalFinal ? '✓ Final ('+p.avalFinal.data+')' : '📄 Enviar avaliação final'}</button>
       ${(p.avalIni && p.avalFinal) ? `<div class="muted">Gordura: ${p.avalIni.percGordura??'–'}% → ${p.avalFinal.percGordura??'–'}%</div>` : ''}
@@ -1271,7 +1271,7 @@ function addParticipante(){
     id: Date.now().toString(36),
     nome,
     sexo: document.getElementById('pSexo').value,
-    telefone: document.getElementById('pTelefone').value.trim(),
+    telefone: document.getElementById('pTelefone').value.trim(), email: document.getElementById('pEmail').value.trim(),
     pesoIni: 0,
     pesoAtual: 0,
     cinturaIni: 0,
@@ -1285,7 +1285,7 @@ function addParticipante(){
   list.push(p);
   saveJSON('sb_participantes', list);
   document.getElementById('pNome').value='';
-  document.getElementById('pTelefone').value='';
+  document.getElementById('pTelefone').value=''; document.getElementById('pEmail').value='';
   render();
 }
 const NOMES_MASCULINOS = ['fernando','cloves','carlos','paulo','marcos','pedro','lucas','rafael','bruno','diego','felipe','gabriel','ricardo','eduardo','rodrigo','alexandre','andre','antonio','daniel','fabio','gustavo','leonardo','marcelo','renato','roberto','sergio','thiago','vinicius','wagner','wellington','anderson','cristiano','douglas','fabricio','henrique','igor','jorge','luiz','mario','nelson','otavio','vitor','william','joao','joaquim','caio','matheus','mateus','victor','leandro','luciano','claudio','alan','ivan','ivo','jose','manoel','miguel','samuel','raul','tiago']; function normalizeStr(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); } function normalizePhone(s){ return (s||'').replace(/\D/g,''); } function guessSexo(nomeCompleto){ const primeiro = normalizeStr(nomeCompleto).split(' ')[0]; return NOMES_MASCULINOS.includes(primeiro) ? 'M' : 'F'; } function openListaImport(){ document.getElementById('listaImportInput').click(); } async function handleListaImportSelected(ev){ const file = ev.target.files[0]; if(!file) return; try{ const buf = await file.arrayBuffer(); const pdf = await pdfjsLib.getDocument({data: buf}).promise; let fullText = ''; for(let i=1;i<=pdf.numPages;i++){ const page = await pdf.getPage(i); const content = await page.getTextContent(); fullText += content.items.map(it=>it.str).join(' ') + ' '; } const entradas = parseListaVendidos(fullText); if(!entradas.length){ alert('Não consegui reconhecer nenhum registro nesse PDF. Confira se é o formato "Nome / E-mail / Telefone" por pessoa.'); return; } const list = getParticipantes(); const telefonesExistentes = new Set(list.map(p=>normalizePhone(p.telefone)).filter(Boolean)); const nomesExistentes = new Set(list.map(p=>normalizeStr(p.nome))); let adicionados = 0, duplicados = 0; entradas.forEach(e=>{ const telNorm = normalizePhone(e.telefone); const nomeNorm = normalizeStr(e.nome); const jaExiste = (telNorm && telefonesExistentes.has(telNorm)) || nomesExistentes.has(nomeNorm); if(jaExiste){ duplicados++; return; } const p = { id: Date.now().toString(36) + Math.random().toString(36).slice(2,6), nome: e.nome, sexo: guessSexo(e.nome), telefone: e.telefone, email: e.email || '', pesoIni: 0, pesoAtual: 0, cinturaIni: 0, cinturaAtual: 0, desafioProgress: {}, avalIni: null, avalFinal: null, linkShaped: '' }; list.push(p); if(telNorm) telefonesExistentes.add(telNorm); nomesExistentes.add(nomeNorm); adicionados++; }); saveJSON('sb_participantes', list); render(); alert(`Importação concluída: ${adicionados} participante(s) nova(s) cadastrada(s), ${duplicados} já existiam e foram ignorada(s).`); }catch(e){ alert('Não consegui ler esse PDF. Detalhe técnico: '+e.message); } ev.target.value = ''; } function parseListaVendidos(text){ const norm = text.replace(/\s+/g,' ').trim(); const re = /Nome:\s*(.+?)\s*E-?mail:\s*(\S+@\S+?)\s*Telefone:\s*([\d()\-\s+]+?)(?=\s*Nome:|$)/gi; const out = []; let m; while((m = re.exec(norm)) !== null){ out.push({ nome: m[1].trim(), email: m[2].trim(), telefone: m[3].trim() }); } return out; } function updateParticipante(id, field, value){
@@ -1528,7 +1528,7 @@ function render(){
   list.forEach(p=>{
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.nome}<br><span class="muted">${p.telefone||''}</span></td>
+      <td>${p.nome}<br><span class="muted">${p.telefone||''}${p.email?' · '+p.email:''}</span></td>
       <td>${p.sexo}</td>
       <td>${p.pesoIni ? p.pesoIni+' kg' : '<span class="muted">—</span>'}</td>
       <td>${p.pesoIni ? p.pesoAtual+' kg' : '<span class="muted">—</span>'}</td>
