@@ -761,7 +761,7 @@ function renderDesafiosTab(list){
 
   const term = normSearch(desafiosSearch);
   let visible = term ? list.filter(p=>normSearch(p.nome).includes(term)) : list;
-  if(desafiosOnlySelected) visible = visible.filter(p=>desafiosSelected.has(p.id));
+  if(desafiosOnlySelected) visible = visible.filter(p=>desafiosSelected.has(p.id)); visible = visible.slice().sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome)));
 
   const cols = buildDesafiosGridCols();
   const hasSubRow = cols.some(c=>c.subLabel);
