@@ -691,7 +691,7 @@ function closeParticipanteDetalhe(){
 // mesma lógica que a Fabi já usava no Excel antes do painel existir.
 function buildDesafiosGridCols(){
   const cols = [];
-  DESAFIOS.forEach(d=>{
+  (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).forEach(d=>{
     if(d.tipo === 'multi'){
       for(let diaIdx=0; diaIdx<d.numDias; diaIdx++){
         d.itens.forEach((itemLabel, itemIdx)=>{
@@ -714,7 +714,7 @@ function buildDesafiosGridCols(){
 let desafiosSearch = '';
 let desafiosCompact = true;
 let desafiosOnlySelected = false;
-let desafiosSelected = new Set();
+let desafiosSelected = new Set(); let desafiosFilterId = '';
 
 function normSearch(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 function setDesafiosSearch(val){ desafiosSearch = val; renderDesafiosTab(window.__lastList || []); }
@@ -728,7 +728,7 @@ function selectAllDesafios(visibleIds){
   visibleIds.forEach(id=>desafiosSelected.add(id));
   renderDesafiosTab(window.__lastList || []);
 }
-function clearDesafiosSelection(){ desafiosSelected.clear(); desafiosOnlySelected = false; renderDesafiosTab(window.__lastList || []); }
+function clearDesafiosSelection(){ desafiosSelected.clear(); desafiosOnlySelected = false; renderDesafiosTab(window.__lastList || []); } function setDesafiosFilter(val){ desafiosFilterId = val; renderDesafiosTab(window.__lastList || []); }
 
 function renderDesafiosTab(list){
   window.__lastList = list;
@@ -747,14 +747,14 @@ function renderDesafiosTab(list){
   const hasSubRow = cols.some(c=>c.subLabel);
   const headerRowspan = hasSubRow ? 3 : 2;
 
-  const groupHeader = DESAFIOS.map(d=>{
+  const groupHeader = (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).map(d=>{
     const span = cols.filter(c=>c.d.id===d.id).length;
     return `<th colspan="${span}">${d.nome}</th>`;
   }).join('');
 
   // linha de dia: para desafios "multi" agrupa as colunas do mesmo dia num único <th colspan>,
   // pros demais tipos cada coluna já é 1 dia/label só, então usa rowspan pra ocupar as 2 linhas de baixo.
-  const dayHeader = DESAFIOS.map(d=>{
+  const dayHeader = (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).map(d=>{
     if(d.tipo === 'multi'){
       let out = '';
       for(let diaIdx=0; diaIdx<d.numDias; diaIdx++){
@@ -784,7 +784,7 @@ function renderDesafiosTab(list){
     <h2 class="section-title">Check dos desafios</h2>
     <p class="muted" style="margin-top:-6px;">Clique numa célula pra marcar/desmarcar. Um desafio só valida com 100% das células daquele grupo marcadas.</p>
     <div class="desafios-controls">
-      <input type="text" id="desafiosSearchInput" placeholder="🔍 Buscar participante..." value="${desafiosSearch.replace(/"/g,'&quot;')}" oninput="setDesafiosSearch(this.value)">
+      <input type="text" id="desafiosSearchInput" placeholder="🔍 Buscar participante..." value="${desafiosSearch.replace(/"/g,'&quot;')}" oninput="setDesafiosSearch(this.value)"><select id="desafiosFilterSelect" onchange="setDesafiosFilter(this.value)"><option value="">Todos os desafios</option>${DESAFIOS.map(d=>`<option value="${d.id}" ${desafiosFilterId===d.id?'selected':''}>${d.nome}</option>`).join('')}</select>
       <button class="btn ghost small" onclick="toggleDesafiosCompact()">${desafiosCompact?'🔎 Modo normal':'🔎 Modo compacto'}</button>
       <button class="btn ghost small" onclick="selectAllDesafios(${visibleIdsJson})">☑️ Selecionar visíveis</button>
       <button class="btn ghost small" onclick="clearDesafiosSelection()">✖️ Limpar seleção</button>
@@ -1421,7 +1421,7 @@ function renderElegibilidadeList(){
   const desafioId = sel.value;
   const desafio = DESAFIOS.find(d=>d.id===desafioId);
   const list = getParticipantes();
-  const elegiveis = list.filter(p=>isDesafioValidado(p, desafioId));
+  const elegiveis = list.filter(p=>isDesafioValidado(p, desafioId)).sort((a,b)=>(a.nome||'').localeCompare(b.nome||'', 'pt-BR'));
   if(!elegiveis.length){
     div.innerHTML = '<div class="empty">Nenhuma participante elegível ainda neste desafio.</div>';
     return;
