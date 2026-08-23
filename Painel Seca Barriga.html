@@ -828,7 +828,7 @@ function renderDesafiosTab(list){
 // Cada item tem o texto verbatim usado em edições anteriores, editável (fica salvo em localStorage por id, sem perder o original).
 // Cartões marcados audioOnly não tinham texto no Trello (só áudio/vídeo) — não foi inventado texto pra eles.
 // Cartões marcados needsLink usam {LINK} como marcador do link individual da avaliação Shaped (ver botão "Msgs avaliação" em Participantes).
-const CALENDARIO = [
+const NL=String.fromCharCode(10), NL2=NL+NL; const CALENDARIO = [
   {offset:-3, label:"D-3", items:[
     {id:'o-3_i0', icon:'🎉', tag:'Abertura oficial do grupo', texto:"Oii, pessoal! Grupo oficial criado 🎉\nSejam todos muito bem-vindos!\n\nAgora é foco, constância e zero desculpas 😎\nVamos arrasar nesse desafio!\n\nBora juntos! 💪✨"},
     {id:'o-3_i1', icon:'📸', tag:'Avaliação corporal (individual)', needsLink:true, texto:"Oii!\n📸 Avaliação corporal – atenção\n\nA avaliação corporal é uma excelente ferramenta do desafio para acompanharmos sua evolução.\nSegue seu link:\n{LINK}\nTutorial para realização das fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nÉ essencial seguir os protocolos para termos a avaliação mais fidedigna:\n\n✔️ 4 horas em jejum\n✔️ Não ter feito exercício físico vigoroso nas últimas 24h\n✔️ Ter urinado nas últimas 2 horas\n✔️ Não estar no período menstrual\n✔️ Não estar gestante\n✔️ Vestimenta adequada (biquíni ou top + short justo)\n✔️ Poses corretas\n✔️ Cabelo preso\n\nQualquer dúvida, me chama"},
