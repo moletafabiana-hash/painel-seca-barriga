@@ -386,7 +386,7 @@
       <div style="overflow-x:auto;">
       <table>
         <thead><tr>
-          <th>Nome</th><th>Sexo</th><th>Peso inicial</th><th>Peso final</th><th>Cintura inicial</th><th>Cintura final</th>
+          <th>Nome</th><th>Sexo</th><th>Peso inicial<br><span class="muted" style="font-style:italic;text-transform:none;">kg</span></th><th>Peso final<br><span class="muted" style="font-style:italic;text-transform:none;">kg</span></th><th>Cintura inicial<br><span class="muted" style="font-style:italic;text-transform:none;">cm</span></th><th>Cintura final<br><span class="muted" style="font-style:italic;text-transform:none;">cm</span></th>
           <th>Desafios validados</th><th></th>
         </tr></thead>
         <tbody id="participantesBody"></tbody>
@@ -418,7 +418,7 @@
   <div class="tabcontent" id="tab-ranking">
     <div class="panel">
       <h2 class="section-title">Ranking — Peso perdido</h2>
-      <p class="muted" style="margin-top:-6px;">Ordenado por kg perdidos (peso inicial − peso final). Badge indica quem já validou os 4 desafios e está elegível ao sorteio geral.</p>
+      <p class="muted" style="margin-top:-6px;">Ordenado por kg perdidos (peso inicial − peso final).</p>
       <div id="rankingPeso"></div>
     </div>
     <div class="panel">
@@ -630,12 +630,15 @@ function confirmShapedReview(){
 
 // ---------- Mensagens de avaliação Shaped (link individual + tutorial fixo) ----------
 let avalMsgPendingId = null;
-function openAvalMsgModal(participantId){
+let avalMsgPendingFase = null;
+function openAvalMsgModal(participantId, fase){
   avalMsgPendingId = participantId;
+  avalMsgPendingFase = fase || null;
   const list = getParticipantes();
   const p = list.find(x=>x.id===participantId);
   if(!p) return;
-  document.getElementById('avalMsgTitle').textContent = `Mensagens de avaliação — ${p.nome}`;
+  const faseLabel = fase==='inicial' ? 'inicial' : (fase==='final' ? 'final' : '');
+  document.getElementById('avalMsgTitle').textContent = `Mensagem de avaliação ${faseLabel} — ${p.nome}`;
   document.getElementById('avalMsgLink').value = p.linkShaped || '';
   renderAvalMsgList(p);
   document.getElementById('avalMsgModal').classList.remove('hidden');
@@ -643,6 +646,7 @@ function openAvalMsgModal(participantId){
 function closeAvalMsgModal(){
   document.getElementById('avalMsgModal').classList.add('hidden');
   avalMsgPendingId = null;
+  avalMsgPendingFase = null;
 }
 function saveAvalLink(){
   const list = getParticipantes();
@@ -653,7 +657,7 @@ function saveAvalLink(){
   renderAvalMsgList(p);
 }
 function renderAvalMsgList(p){
-  const linkItems = Object.values(ALL_MSG_ITEMS).filter(it=>it.needsLink);
+  const linkItems = Object.values(ALL_MSG_ITEMS).filter(it=>it.needsLink && (!avalMsgPendingFase || it.fase===avalMsgPendingFase));
   const listDiv = document.getElementById('avalMsgList');
   const link = p.linkShaped || '[cole o link acima e clique em Salvar]';
   listDiv.innerHTML = linkItems.map(item=>{
@@ -692,12 +696,12 @@ function openParticipanteDetalhe(participantId){
   if(!p) return;
   document.getElementById('detalheTitle').textContent = `Detalhes — ${p.nome}`;
   document.getElementById('detalheBody').innerHTML = `
-    <div style="margin-bottom:12px;"><label class="muted" style="display:block;margin-bottom:4px;">E-mail</label><input type="text" value="${p.email||''}" placeholder="nome@email.com" onchange="updateParticipante('${p.id}','email',this.value.trim())"></div>
     <div class="shaped-col">
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','inicial')">${p.avalIni ? '✓ Inicial ('+p.avalIni.data+')' : '📄 Enviar avaliação inicial'}</button>
       <button class="btn ghost small shaped-btn" onclick="openShapedUpload('${p.id}','final')">${p.avalFinal ? '✓ Final ('+p.avalFinal.data+')' : '📄 Enviar avaliação final'}</button>
       ${(p.avalIni && p.avalFinal) ? `<div class="muted">Peso: ${p.avalIni.peso}kg → ${p.avalFinal.peso}kg (Δ ${(p.avalFinal.peso-p.avalIni.peso).toFixed(1)}kg)</div><div class="muted">Cintura: ${p.avalIni.cintura}cm → ${p.avalFinal.cintura}cm (Δ ${(p.avalFinal.cintura-p.avalIni.cintura).toFixed(1)}cm)</div><div class="muted">Gordura: ${p.avalIni.percGordura??'–'}% → ${p.avalFinal.percGordura??'–'}%</div>` : ''}
-      <button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}')">✉️ Mensagens de avaliação</button>
+      <button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}','inicial')">✉️ Mensagem de avaliação inicial</button>
+      <button class="btn ghost small shaped-btn" onclick="closeParticipanteDetalhe(); openAvalMsgModal('${p.id}','final')">✉️ Mensagem de avaliação final</button>
     </div>
   `;
   document.getElementById('detalheModal').classList.remove('hidden');
@@ -711,7 +715,8 @@ function closeParticipanteDetalhe(){
 // mesma lógica que a Fabi já usava no Excel antes do painel existir.
 function buildDesafiosGridCols(){
   const cols = [];
-  (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).forEach(d=>{
+  const desafiosList = desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS;
+  desafiosList.forEach(d=>{
     if(d.tipo === 'multi'){
       for(let diaIdx=0; diaIdx<d.numDias; diaIdx++){
         d.itens.forEach((itemLabel, itemIdx)=>{
@@ -734,7 +739,8 @@ function buildDesafiosGridCols(){
 let desafiosSearch = '';
 let desafiosCompact = true;
 let desafiosOnlySelected = false;
-let desafiosSelected = new Set(); let desafiosFilterId = '';
+let desafiosSelected = new Set();
+let desafiosFilterId = '';
 
 function normSearch(s){ return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
 function setDesafiosSearch(val){ desafiosSearch = val; renderDesafiosTab(window.__lastList || []); }
@@ -748,7 +754,8 @@ function selectAllDesafios(visibleIds){
   visibleIds.forEach(id=>desafiosSelected.add(id));
   renderDesafiosTab(window.__lastList || []);
 }
-function clearDesafiosSelection(){ desafiosSelected.clear(); desafiosOnlySelected = false; renderDesafiosTab(window.__lastList || []); } function setDesafiosFilter(val){ desafiosFilterId = val; renderDesafiosTab(window.__lastList || []); }
+function clearDesafiosSelection(){ desafiosSelected.clear(); desafiosOnlySelected = false; renderDesafiosTab(window.__lastList || []); }
+function setDesafiosFilter(val){ desafiosFilterId = val; renderDesafiosTab(window.__lastList || []); }
 
 function renderDesafiosTab(list){
   window.__lastList = list;
@@ -761,20 +768,22 @@ function renderDesafiosTab(list){
 
   const term = normSearch(desafiosSearch);
   let visible = term ? list.filter(p=>normSearch(p.nome).includes(term)) : list;
-  if(desafiosOnlySelected) visible = visible.filter(p=>desafiosSelected.has(p.id)); visible = visible.slice().sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome)));
+  if(desafiosOnlySelected) visible = visible.filter(p=>desafiosSelected.has(p.id));
+  visible = visible.slice().sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome)));
 
   const cols = buildDesafiosGridCols();
+  const desafiosHeaderList = desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS;
   const hasSubRow = cols.some(c=>c.subLabel);
   const headerRowspan = hasSubRow ? 3 : 2;
 
-  const groupHeader = (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).map(d=>{
+  const groupHeader = desafiosHeaderList.map(d=>{
     const span = cols.filter(c=>c.d.id===d.id).length;
     return `<th colspan="${span}">${d.nome}</th>`;
   }).join('');
 
   // linha de dia: para desafios "multi" agrupa as colunas do mesmo dia num único <th colspan>,
   // pros demais tipos cada coluna já é 1 dia/label só, então usa rowspan pra ocupar as 2 linhas de baixo.
-  const dayHeader = (desafiosFilterId ? DESAFIOS.filter(d=>d.id===desafiosFilterId) : DESAFIOS).map(d=>{
+  const dayHeader = desafiosHeaderList.map(d=>{
     if(d.tipo === 'multi'){
       let out = '';
       for(let diaIdx=0; diaIdx<d.numDias; diaIdx++){
@@ -804,7 +813,11 @@ function renderDesafiosTab(list){
     <h2 class="section-title">Check dos desafios</h2>
     <p class="muted" style="margin-top:-6px;">Clique numa célula pra marcar/desmarcar. Um desafio só valida com 100% das células daquele grupo marcadas.</p>
     <div class="desafios-controls">
-      <input type="text" id="desafiosSearchInput" placeholder="🔍 Buscar participante..." value="${desafiosSearch.replace(/"/g,'&quot;')}" oninput="setDesafiosSearch(this.value)"><select id="desafiosFilterSelect" onchange="setDesafiosFilter(this.value)"><option value="">Todos os desafios</option>${DESAFIOS.map(d=>`<option value="${d.id}" ${desafiosFilterId===d.id?'selected':''}>${d.nome}</option>`).join('')}</select>
+      <input type="text" id="desafiosSearchInput" placeholder="🔍 Buscar participante..." value="${desafiosSearch.replace(/"/g,'&quot;')}" oninput="setDesafiosSearch(this.value)">
+      <select id="desafiosFilterSelect" onchange="setDesafiosFilter(this.value)">
+        <option value="">Todos os desafios</option>
+        ${DESAFIOS.map(d=>`<option value="${d.id}" ${desafiosFilterId===d.id?'selected':''}>${d.nome}</option>`).join('')}
+      </select>
       <button class="btn ghost small" onclick="toggleDesafiosCompact()">${desafiosCompact?'🔎 Modo normal':'🔎 Modo compacto'}</button>
       <button class="btn ghost small" onclick="selectAllDesafios(${visibleIdsJson})">☑️ Selecionar visíveis</button>
       <button class="btn ghost small" onclick="clearDesafiosSelection()">✖️ Limpar seleção</button>
@@ -828,17 +841,17 @@ function renderDesafiosTab(list){
 // Cada item tem o texto verbatim usado em edições anteriores, editável (fica salvo em localStorage por id, sem perder o original).
 // Cartões marcados audioOnly não tinham texto no Trello (só áudio/vídeo) — não foi inventado texto pra eles.
 // Cartões marcados needsLink usam {LINK} como marcador do link individual da avaliação Shaped (ver botão "Msgs avaliação" em Participantes).
-const NL=String.fromCharCode(10), NL2=NL+NL; const CALENDARIO = [
+const CALENDARIO = [
   {offset:-3, label:"D-3", items:[
     {id:'o-3_i0', icon:'🎉', tag:'Abertura oficial do grupo', texto:"Oii, pessoal! Grupo oficial criado 🎉\nSejam todos muito bem-vindos!\n\nAgora é foco, constância e zero desculpas 😎\nVamos arrasar nesse desafio!\n\nBora juntos! 💪✨"},
-    {id:'o-3_i1', icon:'📸', tag:'Avaliação corporal (individual)', needsLink:true, texto:"Oii!\n📸 Avaliação corporal – atenção\n\nA avaliação corporal é uma excelente ferramenta do desafio para acompanharmos sua evolução.\nSegue seu link:\n{LINK}\nTutorial para realização das fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nÉ essencial seguir os protocolos para termos a avaliação mais fidedigna:\n\n✔️ 4 horas em jejum\n✔️ Não ter feito exercício físico vigoroso nas últimas 24h\n✔️ Ter urinado nas últimas 2 horas\n✔️ Não estar no período menstrual\n✔️ Não estar gestante\n✔️ Vestimenta adequada (biquíni ou top + short justo)\n✔️ Poses corretas\n✔️ Cabelo preso\n\nQualquer dúvida, me chama"},
+    {id:'o-3_i1', icon:'📸', tag:'Avaliação corporal (individual)', needsLink:true, fase:'inicial', texto:"Oii!\n📸 Avaliação corporal – atenção\n\nA avaliação corporal é uma excelente ferramenta do desafio para acompanharmos sua evolução.\nSegue seu link:\n{LINK}\nTutorial para realização das fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nÉ essencial seguir os protocolos para termos a avaliação mais fidedigna:\n\n✔️ 4 horas em jejum\n✔️ Não ter feito exercício físico vigoroso nas últimas 24h\n✔️ Ter urinado nas últimas 2 horas\n✔️ Não estar no período menstrual\n✔️ Não estar gestante\n✔️ Vestimenta adequada (biquíni ou top + short justo)\n✔️ Poses corretas\n✔️ Cabelo preso\n\nQualquer dúvida, me chama"},
     {id:'o-3_i2', icon:'📱', tag:'App Levíssima', audioOnly:true, texto:"(Sem texto no Trello — este card só tem anexos: um vídeo explicativo e o \"Guia Rápido App.pdf\". Envie os arquivos direto no grupo.)", anexosPadrao:["Guia Rápido App.pdf"]},
   ]},
   {offset:-2, label:"D-2", items:[
     {id:'o-2_i0', icon:'🍽️', tag:'Liberação dieta 1', texto:"Olá!!! 💛\nComo parte do nosso compromisso no Seca Barriga, enviamos a dieta da Semana 1 com antecedência, pra você ter tempo de se organizar e começar com tudo na segunda! 💪\n\nAlguns pontos importantes dessa semana:\n\n✔ Essa fase é sem lactose\n✔ O shot é diário e vai nos acompanhar durante todo o desafio\n✔ A água com psyllium é estratégia: ajuda na saciedade e na saúde intestinal (é ruim, mas é bom 😅)\n\nNo final do documento você encontra:\n🛒 Lista de compras\n🧾 Sugestão de produtos sem lactose pra semana\n\nDica: não compre grandes quantidades, porque na próxima semana esse componente volta.\n\nQualquer dúvida, me chama.\nBora começar do jeito certo! ✨", anexosPadrao:["Semana1_Inflamacao_Mulheres.pdf","Semana1_Inflamacao_Homens.pdf","Vídeo Dieta Semana 1::https://drive.google.com/file/d/1dwE8gbK4EaKSrUjeJeycdV2_ziuipJwD/view?usp=sharing"]},
   ]},
   {offset:-1, label:"D-1", items:[
-    {id:'o-1_i0', icon:'🛠️', tag:'Mensagem de alinhamento (ferramentas do desafio)', anexosPadrao:["Vídeo Boas-vindas::https://drive.google.com/file/d/1TAcICX8yoQr2A42Ee9mOiU4SWbI21uk4/view?usp=sharing"], texto:"Pessoal, passando pra explicar as ferramentas do desafio.\nUsamos tecnologia pra dar mais conforto e ajudar no objetivo principal: secar a barriga 😉\n\nNutror\nÉ o app onde ficam todos os conteúdos gravados:\n✔ Treinos da Alice\n✔ Explicações dos desafios\n✔ Orientações da dieta da semana\n✔ Conteúdos gerais\n\nApp Levíssima\nÉ o app de acompanhamento da dieta.\nEle é um facilitador real — mas não é obrigatório.\n\nVocê pode seguir o desafio de 3 formas:\n1. Seguir 100% da dieta que enviei, usando apenas as substituições\n2. Usar as receitas do PDF (o detalhamento está no app)\n3. Fazer suas próprias escolhas, desde que respeite a tabela de calorias e nutrientes do PDF\n(Nesse caso, você ajusta as metas no app e registra tudo que consumir)\n\nShapped (avaliação corporal)\nEnviei individualmente o link pra fazer a avaliação por fotos.\nNão precisa baixar app — é só tirar as fotos e subir no link.\n\nSe tiver dificuldade, pode me mandar:\n📸 as fotos\n📏 sua altura\n⚖️ seu peso atual\nQue eu faço pra você.\n\nQualquer dúvida, me chama 💛"},
+    {id:'o-1_i0', icon:'🛠️', tag:'Mensagem de alinhamento (ferramentas do desafio)', anexosPadrao:["Vídeo Boas-vindas::https://drive.google.com/file/d/1TAcICX8yoQr2A42Ee9mOiU4SWbI21uk4/view?usp=sharing","Vídeo 2 - Sobre o app Levíssima::https://drive.google.com/file/d/1aBK5_o_zzV4TzhSfWtQvKIBXElzbIppW/view?usp=sharing"], texto:"Pessoal, passando pra explicar as ferramentas do desafio.\nUsamos tecnologia pra dar mais conforto e ajudar no objetivo principal: secar a barriga 😉\n\nNutror\nÉ o app onde ficam todos os conteúdos gravados:\n✔ Treinos da Alice\n✔ Explicações dos desafios\n✔ Orientações da dieta da semana\n✔ Conteúdos gerais\n\nApp Levíssima\nÉ o app de acompanhamento da dieta.\nEle é um facilitador real — mas não é obrigatório.\n\nVocê pode seguir o desafio de 3 formas:\n1. Seguir 100% da dieta que enviei, usando apenas as substituições\n2. Usar as receitas do PDF (o detalhamento está no app)\n3. Fazer suas próprias escolhas, desde que respeite a tabela de calorias e nutrientes do PDF\n(Nesse caso, você ajusta as metas no app e registra tudo que consumir)\n\nShapped (avaliação corporal)\nEnviei individualmente o link pra fazer a avaliação por fotos.\nNão precisa baixar app — é só tirar as fotos e subir no link.\n\nSe tiver dificuldade, pode me mandar:\n📸 as fotos\n📏 sua altura\n⚖️ seu peso atual\nQue eu faço pra você.\n\nQualquer dúvida, me chama 💛"},
     {id:'o-1_i1', icon:'🚀', tag:'Mensagem Motivacional (início do desafio)', texto:"Nosso desafio tá quase começando! 🚀\nAmanhã de manhã já liberamos o primeiro desafio de treino e dieta.\n\nEnquanto isso, deixo vocês com essa frase que pode ser o nosso lema:\n\n\"Quanto maior o desafio, maior deve ser a sua confiança de que pode superar. A vitória vem com perseverança, vontade e disciplina.\"\n\nVai ser incrível viver isso juntos! 💪✨\nBora com tudo!"},
   ]},
   {offset:1, label:"D1", items:[
@@ -859,29 +872,16 @@ const NL=String.fromCharCode(10), NL2=NL+NL; const CALENDARIO = [
     {id:'o4_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"My Love Apousada Amor.m4a\". Grave um áudio equivalente e envie no grupo.)"},
     {id:'o4_i1', icon:'💡', tag:'Dica da nutri', texto:"🌟 Dica da nutri do dia: não pule o lanche da tarde!\n\nFicar muitas horas sem comer parece uma boa ideia… até chegar a noite 😂\n\nAí vem:\nfome exagerada, ansiedade e ataque nos beliscos.\n\nUm lanche da tarde estratégico ajuda MUITO no controle da fome e no seca barriga 😉\n\nOBS: não fazer o lanche da tarde será uma estratégia específica do nosso desafio. Por enquanto, seguimos a rotina 🤩"},
   ]},
-  {offset:5, label:"D5", items:[    {id:'o5_i0', icon:'📍', tag:'Lembrete desafio 1', texto:`Pessoal, bom dia!!! ☀️
-Hoje é o último dia do Desafio 1! Quem ainda não postou todas as fotos, corre que ainda dá tempo!
-
-Bora que esse desafio tá fácil demais!`},    {id:'o5_i1', icon:'🍽️', tag:'Liberação de Dieta 2', texto:`Dieta da Semana 2 liberada!
-É hora de organizar a sua próxima semana aqui no desafio porque organização muda o jogo.
-Já abre o documento, vê o que vai precisar, o que tem em casa, monta sua lista e rumo ao mercado!
-
-🚨 ESSA DIETA VALE A PARTIR DE {DATA_DIETA2} 🚨`, anexosPadrao:["Semana2_Energia_Mulheres.pdf","Semana2_Energia_Homens.pdf","Vídeo Dieta Semana 2::https://drive.google.com/file/d/1ibiUOAx8IHjq4Vnct2ZY2g2sWgpBWyUj/view?usp=sharing"]},]},{offset:6, label:"D6", items:[    {id:'o6_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"Dia 6.m4a\". Grave um áudio equivalente e envie no grupo.)"},    {id:'o6_i1', icon:'📆', tag:'Desafio 2 — Prato colorido', texto:`Bom diaa!
-Bora de Desafio 2? É hora de montar o prato com comida de verdade e cheia de cor!
-
-✔️ 1 refeição por dia com no mínimo 3 cores no prato
-✔️ Em pelo menos 3 dias, com comprovação
-
-Quanto mais cor, mais nutrientes, mais ação anti-inflamatória e mais resultado na barriga. Simples assim.
-
-👀 Antes de montar o prato, olha o card em anexo.
-Lá eu te explico porque esse desafio é tão importante pro corpo responder melhor.
-
-Bora caprichar no prato, postar e seguir o jogo! 🍽️🔥`, anexosPadrao:["Desafio 2.pdf","Vídeo Desafio 2::https://drive.google.com/file/d/1_7qK64gjXFHX44EJEYVCKsTlfYj1L8bt/view?usp=sharing"]},    {id:'o6_i2', icon:'🧮', tag:'Apuração Desafio 1', texto:`Apuração do Desafio 1
-Segue apuração final do desafio 1 - hidratação. Caso tenha contestação, favor enviar até 18h30 (com a devida comprovação).
-Após esse horário, faremos o sorteio. 🎁
-
-Confere direitinho e boraaa! 🔥`},    {id:'o6_i3', icon:'🎲', tag:'Sorteio desafio 1', audioOnly:true, texto:"(Sem texto salvo no Trello — mensagem de sorteio enviada ao vivo/na hora, com o nome da sorteada. Escreva aqui o texto que quiser usar.)"},]},
+  {offset:5, label:"D5", items:[
+    {id:'o5_i0', icon:'📍', tag:'Lembrete desafio 1', texto:"Pessoal, bom dia!!! ☀️\nHoje é o último dia do Desafio 1! Quem ainda não postou todas as fotos, corre que ainda dá tempo!\n\nBora que esse desafio tá fácil demais!"},
+    {id:'o5_i1', icon:'🍽️', tag:'Liberação de Dieta 2', texto:"Dieta da Semana 2 liberada!\nÉ hora de organizar a sua próxima semana aqui no desafio porque organização muda o jogo.\nJá abre o documento, vê o que vai precisar, o que tem em casa, monta sua lista e rumo ao mercado!\n\n🚨 ESSA DIETA VALE A PARTIR DE {DATA_DIETA2} 🚨", anexosPadrao:["Semana2_Energia_Mulheres.pdf","Semana2_Energia_Homens.pdf","Vídeo Dieta Semana 2::https://drive.google.com/file/d/1ibiUOAx8IHjq4Vnct2ZY2g2sWgpBWyUj/view?usp=sharing"]},
+  ]},
+  {offset:6, label:"D6", items:[
+    {id:'o6_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"Dia 6.m4a\". Grave um áudio equivalente e envie no grupo.)"},
+    {id:'o6_i1', icon:'📆', tag:'Desafio 2 — Prato colorido', texto:"Bom diaa!\nBora de Desafio 2? É hora de montar o prato com comida de verdade e cheia de cor!\n\n✔️ 1 refeição por dia com no mínimo 3 cores no prato\n✔️ Em pelo menos 3 dias, com comprovação\n\nQuanto mais cor, mais nutrientes, mais ação anti-inflamatória e mais resultado na barriga. Simples assim.\n\n👀 Antes de montar o prato, olha o card em anexo.\nLá eu te explico porque esse desafio é tão importante pro corpo responder melhor.\n\nBora caprichar no prato, postar e seguir o jogo! 🍽️🔥", anexosPadrao:["Desafio 2.pdf","Vídeo Desafio 2::https://drive.google.com/file/d/1_7qK64gjXFHX44EJEYVCKsTlfYj1L8bt/view?usp=sharing"]},
+    {id:'o6_i2', icon:'🧮', tag:'Apuração Desafio 1', texto:"Apuração do Desafio 1\nSegue apuração final do desafio 1 - hidratação. Caso tenha contestação, favor enviar até 18h30 (com a devida comprovação).\nApós esse horário, faremos o sorteio. 🎁\n\nConfere direitinho e boraaa! 🔥"},
+    {id:'o6_i3', icon:'🎲', tag:'Sorteio desafio 1', audioOnly:true, texto:"(Sem texto salvo no Trello — mensagem de sorteio enviada ao vivo/na hora, com o nome da sorteada. Escreva aqui o texto que quiser usar.)"},
+  ]},
   {offset:7, label:"D7", items:[
     {id:'o7_i0', icon:'💡', tag:'Dica da nutri', texto:"💡 Dica da Nutri\n\nAmanhã começa a nova dieta do desafio e esse é o momento de planejar suas refeições da semana 😉\n\nOrganização é fundamental para evitar deslizes, beliscos e escolhas por impulso no dia a dia.\n\nE para te ajudar, compartilho essa receita de quiche low carb de alho-poró. 🥧✨ É fácil de fazer, ajuda na saciedade e é simplesmente deliciosa!\n\n🔗 https://www.instagram.com/reel/DSWIL9pjX88/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==\n\n⚠️ Atenção: se fizer, você precisa atualizar seu diário de refeições no App Levíssima para acompanhar suas metas."},
   ]},
@@ -905,66 +905,15 @@ Confere direitinho e boraaa! 🔥`},    {id:'o6_i3', icon:'🎲', tag:'Sorteio d
     {id:'o11_i1', icon:'🧮', tag:'Apuração Desafio 2', texto:"📊 Apuração do Desafio 2\n\nSegue a apuração final do desafio 2 – cores no prato 🎨🍽️\nSe alguém quiser contestar, é só enviar a comprovação até 18h30.\n\n⏰ Após esse horário, seguimos com o sorteio 🎁✨"},
     {id:'o11_i2', icon:'🎲', tag:'Sorteio desafio 2', audioOnly:true, texto:"(Sem texto salvo no Trello — mensagem de sorteio enviada ao vivo/na hora, com o nome da sorteada. Escreva aqui o texto que quiser usar.)"},
   ]},
-  {offset:12, label:"D12", items:[    {id:'o12_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"Dia 12.m4a\". Grave um áudio equivalente e envie no grupo.)"},    {id:'o12_i1', icon:'🍽️', tag:'Liberação de Dieta 3', texto:`Dieta da Semana 3 liberada!
-A última do desafio. 💪🔥
-
-O que muda agora:
-✔ Sem carne vermelha
-✔ Alimentação ainda mais restrita e estratégica. Por isso, sem refeições intermediárias!
-✔ Shot segue diário
-✔ Psyllium também (essa semana será um diferencial para manter saciedade… acredite em mim!)
-✔ Demais combinados permanecem
-
-O foco agora é um só: acelerar o emagrecimento e fechar o desafio com resultado.
-A lista de compras 🛒 e orientações 🧾 pra facilitar sua rotina nessa última semana vocês encontram nos arquivos anexos.
-
-⚠️📅 ATENÇÃO: ESSA DIETA VALE A PARTIR DE {DATA_DIETA3}. Até lá, nada muda!
-Estamos liberando antes justamente pra você se organizar, fazer as compras certas e não deixar nada de fora.
-
-Bora fechar esse Seca Barriga com chave de ouro!!! ✨`, anexosPadrao:["Semana3_Metabolismo_Mulheres.pdf","Semana3_Metabolismo_Homens.pdf","Vídeo Dieta Semana 3::https://drive.google.com/file/d/1qdecDwgC-BUmt1Bzw7LDvnde5KkMP5bw/view?usp=sharing"]},    {id:'o12_i2', icon:'❌', tag:'Enquete', texto:`Amanhã a gente começa mais uma semana do desafio 💪
-E sim… vai ser uma semana intensa.
-
-Mas antes de seguir, queremos saber de vocês — de verdade.
-Todo processo tem seus desafios, e falar sobre eles também faz parte.
-
-Não se conquista o corpo que se quer buscando atalhos!
-
-Enquete
-O que tá pesando mais até agora pra você?
-🏋️‍♀️ Treinos
-🥗 Dieta
-🍳 Preparos
-🚫 Falta da refeição livre`},    {id:'o12_i3', icon:'🥗', tag:'Receitinha da nutri', texto:`Eita que é última semana do Seca Barriga tá chegando!
-E olha só: como sai a carne vermelha… e volta o pãozinho, a nutri resolveu liberar mais essa delícia pra vocês 😉
-
-Que tal essa receitinha da nutri pra um jantar-lanche: leve, gostoso e com cara de conforto?
-
-Prática, não pesa e encaixa nessa fase final.
-
-🚨 Atenção: componha com uma salada caprichada pra aumentar a saciedade e manter o resultado.
-
-📸 Olha a foto da nutri — porque aqui a gente ensina o que faz.
-
-🔗 https://www.instagram.com/reel/DPZSie8jVji/?igsh=MW5md2Z5Yzh0MGE4dA==
-
-🚨 Essa opção só vale quando iniciarmos a dieta 3, ok? Só estou enviando agora para anteciparem compras, se necessário.
-
-Bora fechar essa desafio do jeito certo… e com muuuito sucesso`},]},{offset:13, label:"D13", items:[    {id:'o13_i0', icon:'💡', tag:'Dica da nutri', texto:`Deixa eu te contar uma verdade que ninguém gosta de ouvir: estresse, ansiedade, emoção descompensada NÃO seca barriga. Pelo contrário… aumenta.
-
-Estresse alto = cortisol alto
-Cortisol alto = mais gordura abdominal + mais vontade de doce + mais retenção.
-
-Não adianta comer certinho, treinar, tomar água… se a cabeça tá um caos.
-
-Organizar as emoções é parte do processo tanto no emagrecimento quanto na vida.
-
-Respira.
-Cuida de você.
-Dorme bem.
-Dorme cedo.
-Tira as preocupações desnecessárias e trata com leveza as que são reais.
-
-O corpo responde.`},]},
+  {offset:12, label:"D12", items:[
+    {id:'o12_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"Dia 12.m4a\". Grave um áudio equivalente e envie no grupo.)"},
+    {id:'o12_i1', icon:'🍽️', tag:'Liberação de Dieta 3', texto:"Dieta da Semana 3 liberada!\nA última do desafio. 💪🔥\n\nO que muda agora:\n✔ Sem carne vermelha\n✔ Alimentação ainda mais restrita e estratégica. Por isso, sem refeições intermediárias!\n✔ Shot segue diário\n✔ Psyllium também (essa semana será um diferencial para manter saciedade… acredite em mim!)\n✔ Demais combinados permanecem\n\nO foco agora é um só: acelerar o emagrecimento e fechar o desafio com resultado.\nA lista de compras 🛒 e orientações 🧾 pra facilitar sua rotina nessa última semana vocês encontram nos arquivos anexos.\n\n⚠️📅 ATENÇÃO: ESSA DIETA VALE A PARTIR DE {DATA_DIETA3}. Até lá, nada muda!\nEstamos liberando antes justamente pra você se organizar, fazer as compras certas e não deixar nada de fora.\n\nBora fechar esse Seca Barriga com chave de ouro!!! ✨", anexosPadrao:["Semana3_Metabolismo_Mulheres.pdf","Semana3_Metabolismo_Homens.pdf","Vídeo Dieta Semana 3::https://drive.google.com/file/d/1qdecDwgC-BUmt1Bzw7LDvnde5KkMP5bw/view?usp=sharing"]},
+    {id:'o12_i2', icon:'❌', tag:'Enquete', texto:"Amanhã a gente começa mais uma semana do desafio 💪\nE sim… vai ser uma semana intensa.\n\nMas antes de seguir, queremos saber de vocês — de verdade.\nTodo processo tem seus desafios, e falar sobre eles também faz parte.\n\nNão se conquista o corpo que se quer buscando atalhos!\n\nEnquete\nO que tá pesando mais até agora pra você?\n🏋️‍♀️ Treinos\n🥗 Dieta\n🍳 Preparos\n🚫 Falta da refeição livre"},
+    {id:'o12_i3', icon:'🥗', tag:'Receitinha da nutri', texto:"Eita que é última semana do Seca Barriga tá chegando!\nE olha só: como sai a carne vermelha… e volta o pãozinho, a nutri resolveu liberar mais essa delícia pra vocês 😉\n\nQue tal essa receitinha da nutri pra um jantar-lanche: leve, gostoso e com cara de conforto?\n\nPrática, não pesa e encaixa nessa fase final.\n\n🚨 Atenção: componha com uma salada caprichada pra aumentar a saciedade e manter o resultado.\n\n📸 Olha a foto da nutri — porque aqui a gente ensina o que faz.\n\n🔗 https://www.instagram.com/reel/DPZSie8jVji/?igsh=MW5md2Z5Yzh0MGE4dA==\n\n🚨 Essa opção só vale quando iniciarmos a dieta 3, ok? Só estou enviando agora para anteciparem compras, se necessário.\n\nBora fechar essa desafio do jeito certo… e com muuuito sucesso"},
+  ]},
+  {offset:13, label:"D13", items:[
+    {id:'o13_i0', icon:'💡', tag:'Dica da nutri', texto:"Deixa eu te contar uma verdade que ninguém gosta de ouvir: estresse, ansiedade, emoção descompensada NÃO seca barriga. Pelo contrário… aumenta.\n\nEstresse alto = cortisol alto\nCortisol alto = mais gordura abdominal + mais vontade de doce + mais retenção.\n\nNão adianta comer certinho, treinar, tomar água… se a cabeça tá um caos.\n\nOrganizar as emoções é parte do processo tanto no emagrecimento quanto na vida.\n\nRespira.\nCuida de você.\nDorme bem.\nDorme cedo.\nTira as preocupações desnecessárias e trata com leveza as que são reais.\n\nO corpo responde."},
+  ]},
   {offset:14, label:"D14", items:[
     {id:'o14_i0', icon:'🎙️', tag:'Motivacional do dia', audioOnly:true, texto:"(Sem texto no Trello — áudio motivacional \"Dia 14.m4a\". Grave um áudio equivalente e envie no grupo.)"},
     {id:'o14_i1', icon:'📍', tag:'Parcial desafio 3', texto:"Gente, segue a parcial do Desafio 3! Ainda dá tempo de participar e garantir sua chance no sorteio 🎁\n\nVamos combinar? Tá molezinha 😅\nSó não faz quem não quer secar a barriga de verdade\n\nMandou a comprovação e ficou pendente? Reenvia que eu confiro e dou o ✅"},
@@ -996,7 +945,8 @@ O corpo responde.`},]},
   {offset:21, label:"D21", items:[
     {id:'o21_i0', icon:'🧮', tag:'Apuração Desafio 4', texto:"Pessoal, apuração final do Desafio 4 🔥\nCaso alguém precise ajustar algo, é só enviar a comprovação até 18h30.\n\n⏰ Após esse horário, seguimos com o sorteio 🎁✨"},
     {id:'o21_i1', icon:'🎲', tag:'Sorteio desafio 4', audioOnly:true, texto:"(Sem texto salvo no Trello — mensagem de sorteio enviada ao vivo/na hora, com o nome da sorteada. Escreva aqui o texto que quiser usar.)"},
-    {id:'o21_i2', icon:'📍', tag:'Avaliação Shapped (fechamento)', needsLink:true, texto:"Olá.\nÉ hora de medir os resultados! 💪🏻\nEsse é o link para fazer sua última avaliação:\n{LINK}\n\nTutorial para realizar as fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nOrientações:\n4 horas em jejum\nNão ter feito exercício físico vigoroso nas últimas 24h\nTer urinado nas últimas 2 horas\nVestimenta adequada (biquíni ou top + short justo)\nPoses corretas\nCabelo preso\nNão estar no período menstrual\nNão estar gestante\n\nSe não conseguir subir as fotos direto na plataforma, me envia por aqui junto com seu peso atual."}, {id:'o21_i3', icon:'💬', tag:'Divulgação Consultoria 30D', texto:"Pessoal, chegamos ao fim dos 21 dias! 🎉"+NL2+"Sabe aquele medo de voltar pro peso de antes assim que o desafio acaba? Isso tem nome: é o efeito sanfona, e ele acontece quando a gente perde peso rápido mas não constrói um método próprio pra sustentar o resultado sozinha."+NL2+"Foi pensando nisso que criei a Consultoria 30D: um plano alimentar individualizado — pensado pra sua rotina, seu objetivo (seguir emagrecendo, manter o resultado ou ganhar massa magra) e seu momento de vida — com acompanhamento comigo por 30 dias."+NL2+"Como funciona:"+NL+"1. Você preenche um formulário com seus dados e objetivos"+NL+"2. Em até 48h úteis recebe seu plano, com formulações e orientações práticas"+NL+"3. Avaliação corporal por fotos (Shapped) em 2 momentos: no início e depois de 30 dias, pra acompanhar sua evolução de verdade"+NL+"4. Suporte individual comigo no WhatsApp por 30 dias + acesso ao App Levíssima por 60 dias"+NL2+"Não é dieta da moda — é o meu método exclusivo, já validado em consultório com centenas de pacientes."+NL2+"Quem quer continuar com método (e não do jeito que der) encontra tudo aqui:"+NL+"👉 https://nutrifabimoleta.kpages.online/consultoria-30d-metodo-fabi-moleta"+NL2+"Qualquer dúvida, me chama no privado."},
+    {id:'o21_i2', icon:'📍', tag:'Avaliação Shapped (fechamento)', needsLink:true, fase:'final', texto:"Olá.\nÉ hora de medir os resultados! 💪🏻\nEsse é o link para fazer sua última avaliação:\n{LINK}\n\nTutorial para realizar as fotos: https://web.shaped.com.br/assets/pdfTutorial-PT-CUrFYaE3.pdf\n\nOrientações:\n4 horas em jejum\nNão ter feito exercício físico vigoroso nas últimas 24h\nTer urinado nas últimas 2 horas\nVestimenta adequada (biquíni ou top + short justo)\nPoses corretas\nCabelo preso\nNão estar no período menstrual\nNão estar gestante\n\nSe não conseguir subir as fotos direto na plataforma, me envia por aqui junto com seu peso atual."},
+    {id:'o21_i3', icon:'💬', tag:'Divulgação Consultoria 30D', texto:"Pessoal, chegamos ao fim dos 21 dias! 🎉\n\nSabe aquele medo de voltar pro peso de antes assim que o desafio acaba? Isso tem nome: é o efeito sanfona, e ele acontece quando a gente perde peso rápido mas não constrói um método próprio pra sustentar o resultado sozinha.\n\nFoi pensando nisso que criei a Consultoria 30D: um plano alimentar individualizado — pensado pra sua rotina, seu objetivo (seguir emagrecendo, manter o resultado ou ganhar massa magra) e seu momento de vida — com acompanhamento comigo por 30 dias.\n\nComo funciona:\n1. Você preenche um formulário com seus dados e objetivos\n2. Em até 48h úteis recebe seu plano, com formulações e orientações práticas\n3. Avaliação corporal por fotos (Shapped) em 2 momentos: no início e depois de 30 dias, pra acompanhar sua evolução de verdade\n4. Suporte individual comigo no WhatsApp por 30 dias + acesso ao App Levíssima por 60 dias\n\nNão é dieta da moda — é o meu método exclusivo, já validado em consultório com centenas de pacientes.\n\nQuem quer continuar com método (e não do jeito que der) encontra tudo aqui:\n👉 https://nutrifabimoleta.kpages.online/consultoria-30d-metodo-fabi-moleta\n\nQualquer dúvida, me chama no privado."},
   ]},
 ];
 const ALL_MSG_ITEMS = {};
@@ -1683,7 +1633,7 @@ function renderEdicoesTab(){
         <td>${p.sexo||'—'}</td>
         <td>${perdaPeso(p).toFixed(1)} kg</td>
         <td>${perdaCintura(p).toFixed(1)} cm</td>
-        <td>${validadosCount(p)}/4${elegivelSorteio(p)?' <span class="badge ok">Elegível</span>':''}</td>
+        <td>${validadosCount(p)}/4</td>
       </tr>`).join('');
     const sorteiosList = DESAFIOS.map(d=>{
       const v = normalizeSorteio(ed.sorteios && ed.sorteios[d.id]);
@@ -1773,7 +1723,8 @@ function render(){
   const tbody = document.getElementById('participantesBody');
   tbody.innerHTML = '';
   const searchNorm = normalizeStr(participantesSearch);
-  let listFiltrada = searchNorm ? list.filter(p=>normalizeStr(p.nome).includes(searchNorm) || normalizePhone(p.telefone).includes(normalizePhone(participantesSearch)) || normalizeStr(p.email||'').includes(searchNorm)) : list.slice();
+  const searchPhoneNorm = normalizePhone(participantesSearch);
+  let listFiltrada = searchNorm ? list.filter(p=>normalizeStr(p.nome).includes(searchNorm) || (searchPhoneNorm && normalizePhone(p.telefone).includes(searchPhoneNorm)) || normalizeStr(p.email||'').includes(searchNorm)) : list.slice();
   listFiltrada = listFiltrada.sort((a,b)=>normalizeStr(a.nome).localeCompare(normalizeStr(b.nome)));
   document.getElementById('participantesEmpty').style.display = listFiltrada.length? 'none':'block';
   if(!listFiltrada.length && list.length){
@@ -1786,10 +1737,10 @@ function render(){
     tr.innerHTML = `
       <td>${p.nome}<br><span class="muted">${p.telefone||''}${p.email?' · '+p.email:''}</span></td>
       <td>${p.sexo}</td>
-      <td>${p.pesoIni ? p.pesoIni+' kg' : '<span class="muted">—</span>'}</td>
-      <td>${p.avalFinal ? p.pesoAtual+' kg <span class="muted">('+(p.pesoAtual-p.pesoIni<=0?'':'+')+(p.pesoAtual-p.pesoIni).toFixed(1)+' kg)</span>' : '<span class="muted">—</span>'}</td>
-      <td>${p.cinturaIni ? p.cinturaIni+' cm' : '<span class="muted">—</span>'}</td>
-      <td>${p.avalFinal ? p.cinturaAtual+' cm <span class="muted">('+(p.cinturaAtual-p.cinturaIni<=0?'':'+')+(p.cinturaAtual-p.cinturaIni).toFixed(1)+' cm)</span>' : '<span class="muted">—</span>'}</td>
+      <td>${p.pesoIni ? p.pesoIni : '<span class="muted">—</span>'}</td>
+      <td>${p.avalFinal ? p.pesoAtual+' <span class="muted">('+(p.pesoAtual-p.pesoIni<=0?'':'+')+(p.pesoAtual-p.pesoIni).toFixed(1)+')</span>' : '<span class="muted">—</span>'}</td>
+      <td>${p.cinturaIni ? p.cinturaIni : '<span class="muted">—</span>'}</td>
+      <td>${p.avalFinal ? p.cinturaAtual+' <span class="muted">('+(p.cinturaAtual-p.cinturaIni<=0?'':'+')+(p.cinturaAtual-p.cinturaIni).toFixed(1)+')</span>' : '<span class="muted">—</span>'}</td>
       <td>${validadosCount(p)}/4</td>
       <td class="row-actions">
         <button class="btn ghost small" onclick="openParticipanteDetalhe('${p.id}')">Ver detalhes</button>
@@ -1839,12 +1790,10 @@ function renderRankingBlock(elId, ranked, valueFn){
   }
   rankDiv.innerHTML = ranked.map((p,i)=>{
     const validados = validadosCount(p);
-    const elegivel = elegivelSorteio(p);
     return `
       <div class="rank-row ${i===0?'gold':''}">
         <div class="rank-num">${i+1}</div>
         <div style="flex:1;">${p.nome} <span class="muted">· ${validados}/4 desafios</span></div>
-        <div>${elegivel? '<span class="badge ok">Elegível ao sorteio</span>' : ''}</div>
         <div style="min-width:60px;text-align:right;font-weight:700;">${valueFn(p)}</div>
       </div>`;
   }).join('');
